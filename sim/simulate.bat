@@ -13,21 +13,26 @@
 @echo off
 REM Usage: simulate.bat path\to\simulate.tcl
 
+set VIVADO_PATH="D:\Xilinx\Vivado\2019.2"
 
-REM Check if argument was given
 if "%~1"=="" (
     echo Usage: %~nx0 path\to\simulate.tcl
     exit /b 1
 )
 
-echo Running simulation...
+echo Setting environment (settings64)...
+call "%VIVADO_PATH%\settings64.bat"
 
-set VIVADO_PATH="D:\Xilinx\Vivado\2019.2"
-
-xvhdl ../src/uart/uart.vhd tb_my_design.v
+echo Syntax check...
+xvhdl ../src/uart/uart.vhd
 ::xvhdl ../src/uart/uart.vhd tb_my_design.v
+
+echo Elaborating...
 xelab tb_my_design -s tb_sim
-xsim tb_sim -runall
+
+echo Run simulation...
+::xsim tb_sim -runall
+xsim tb_sim -t 1ms
 
 
 
