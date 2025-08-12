@@ -86,11 +86,11 @@ architecture archDefault of uart is
   -- ---------
   -- Constants
   -- ---------
-  constant SAMPLE_TIMER_THRESH  : STD_LOGIC_VECTOR(31 downto 0) := STD_LOGIC_VECTOR(TO_UNSIGNED(INTEGER((10.0**6)*(CLOCK_FREQ_MHZ/(4.0*BAUDRATE)))-1,32));
   constant N_BITS               : NATURAL                       := 10;  -- start bit + 1 byte + stop bit
-  constant BIT_INDEX_THRESH     : STD_LOGIC_VECTOR(3 downto 0)  := STD_LOGIC_VECTOR(TO_UNSIGNED(N_BITS-1,4));
   constant RX_BUFFER_SIZE       : NATURAL                       := 3*N_BITS;
-  constant TX_BIT_TIMER_THRESH  : STD_LOGIC_VECTOR(31 downto 0) := STD_LOGIC_VECTOR(TO_UNSIGNED(INTEGER((10.0**6)*(CLOCK_FREQ_MHZ/BAUDRATE))-1,32));
+  constant BIT_INDEX_THRESH     : STD_LOGIC_VECTOR(3 downto 0)  := STD_LOGIC_VECTOR(TO_UNSIGNED(N_BITS-1, 4));
+  constant SAMPLE_TIMER_THRESH  : STD_LOGIC_VECTOR(31 downto 0) := STD_LOGIC_VECTOR(TO_UNSIGNED(INTEGER((10.0**6)*(CLOCK_FREQ_MHZ/(4.0*BAUDRATE)))-1, 32));
+  constant TX_BIT_TIMER_THRESH  : STD_LOGIC_VECTOR(31 downto 0) := STD_LOGIC_VECTOR(TO_UNSIGNED(INTEGER((10.0**6)*(CLOCK_FREQ_MHZ/BAUDRATE))-1, 32));
 
   -- ---------
   -- Functions
@@ -108,9 +108,9 @@ architecture archDefault of uart is
   -- ----------------
   -- Internal signals
   -- ----------------
-  signal UART_in_R              : STD_LOGIC;
-  signal UART_in_R_R            : STD_LOGIC;
-  signal UART_in_R_R_R          : STD_LOGIC;
+  signal uart_in_R              : STD_LOGIC;
+  signal uart_in_RR             : STD_LOGIC;
+  signal uart_in_RRR            : STD_LOGIC;
 
   -- RX FSM signals
   signal RX_state               : RX_STATE_TYPE;
@@ -127,23 +127,23 @@ architecture archDefault of uart is
   signal TX_state               : TX_STATE_TYPE;
   signal TX_buffer              : STD_LOGIC_VECTOR((N_BITS-1) downto 0);
   signal TX_bit_count           : STD_LOGIC_VECTOR((N_BITS-1) downto 0);
-  signal TX_bit_timer           : STD_LOGIC_VECTOR(31 downto 0);
-  signal UART_out_buffer        : STD_LOGIC; 
+  signal tx_bit_timer           : STD_LOGIC_VECTOR(31 downto 0);
+  signal uart_out_buffer        : STD_LOGIC; 
 
 begin
 
-  uart_out <= UART_out_buffer;
+  uart_out <= uart_out_buffer;
   
   
   -- --------------------------------------------------------------------------
   -- UART input resynchronisation
   -- --------------------------------------------------------------------------
-  UART_in_resync_proc : process(clock, reset)
+  p_uartInResync : process(clock, reset)
   procedure reset_proc is
   begin
-    UART_in_R     <= PHY_IDLE_STATE;
-    UART_in_R_R   <= PHY_IDLE_STATE;
-    UART_in_R_R_R <= PHY_IDLE_STATE;
+    uart_in_R   <= PHY_IDLE_STATE;
+    uart_in_RR  <= PHY_IDLE_STATE;
+    uart_in_RRR <= PHY_IDLE_STATE;
   end procedure;
   
 	begin
@@ -153,23 +153,23 @@ begin
 			if ((reset = RESET_POL) and (SYNC_RESET = '1')) then
         reset_proc;
       else
-        UART_in_R     <= uart_in;
-        UART_in_R_R   <= UART_in_R;
-        UART_in_R_R_R <= UART_in_R_R;
+        uart_in_R   <= uart_in;
+        uart_in_RR  <= uart_in_R;
+        uart_in_RRR <= uart_in_RR;
       end if;
 		end if;
-	end process UART_in_resync_proc;
+	end process p_uartInResync;
   
   
   
   -- --------------------------------------------------------------------------
   -- UART receiver sampling machine
   -- --------------------------------------------------------------------------
-  UART_RX_FSM_proc : process(clock, reset)
+  p_uartRxFsm : process(clock, reset)
   procedure reset_proc is
   begin
     RX_state      <= RX_INIT;
-    sample_count  <= "00";
+    sample_count  <= (others => '0');
     sample_timer  <= SAMPLE_TIMER_THRESH;
     bit_index     <= (others => '0');
     RX_buffer     <= (others => '0');
@@ -186,18 +186,18 @@ begin
         case(RX_state) is 
           -- ------------------------------------------------------------------
           when RX_INIT =>
-            if ((UART_in_R_R = not(PHY_IDLE_STATE)) and (UART_in_R_R_R = PHY_IDLE_STATE)) then
+            if ((uart_in_RR = not(PHY_IDLE_STATE)) and (uart_in_RRR = PHY_IDLE_STATE)) then
               -- UART state just changed, start sampling procedure.
               RX_state      <= RX_BIT_SAMPLING;
-              sample_count  <= "00";
-              sample_timer  <= SAMPLE_TIMER_THRESH - 1;
+              sample_count  <= (others => '0');
+              sample_timer  <= STD_LOGIC_VECTOR(UNSIGNED(SAMPLE_TIMER_THRESH) - 1);
               bit_index     <= (others => '0');
               RX_buffer     <= RX_buffer;
               sampling_done <= '0';
             else
               -- No activity detected on UART.
               RX_state      <= RX_INIT;
-              sample_count  <= "00";
+              sample_count  <= (others => '0');
               sample_timer  <= SAMPLE_TIMER_THRESH;
               bit_index     <= (others => '0');
               RX_buffer     <= RX_buffer;
@@ -205,58 +205,58 @@ begin
             end if;
           -- ------------------------------------------------------------------
           when RX_BIT_SAMPLING =>
-            if (sample_timer = 0) then
+            if (UNSIGNED(sample_timer) = 0) then
               -- It's time for sampling the bit status
               if (bit_index = BIT_INDEX_THRESH) then
                 -- The bit we are about to sample is the last
-                if (sample_count = "10") then             -- stop at the last sampling point
+                if (UNSIGNED(sample_count) = 2) then      -- stop at the last sampling point
                   RX_state      <= RX_SAMPLING_DONE;      -- to avoid missing the next falling edge.
-                  sample_count  <= "00";
+                  sample_count  <= (others => '0');
                   sample_timer  <= SAMPLE_TIMER_THRESH;
                   bit_index     <= (others => '0');
                   
                   if (MSB_FIRST = '0') then
-                    RX_buffer <= (UART_in_R_R_R xor (not(PHY_IDLE_STATE))) & RX_buffer((RX_BUFFER_SIZE-1) downto 1);
+                    RX_buffer <= (uart_in_RRR xor (not(PHY_IDLE_STATE))) & RX_buffer((RX_BUFFER_SIZE-1) downto 1);
                   else
-                    RX_buffer <= RX_buffer((RX_BUFFER_SIZE-2) downto 0) & (UART_in_R_R_R xor (not(PHY_IDLE_STATE)));
+                    RX_buffer <= RX_buffer((RX_BUFFER_SIZE-2) downto 0) & (uart_in_RRR xor (not(PHY_IDLE_STATE)));
                   end if;
                   
                   sampling_done <= '0';
                 else
                   RX_state      <= RX_BIT_SAMPLING;
-                  sample_count  <= sample_count + 1;
+                  sample_count  <= STD_LOGIC_VECTOR(UNSIGNED(sample_count) + 1);
                   sample_timer  <= SAMPLE_TIMER_THRESH;
                   bit_index     <= bit_index;
                   
                   if (MSB_FIRST = '0') then
-                    RX_buffer <= (UART_in_R_R_R xor (not(PHY_IDLE_STATE))) & RX_buffer((RX_BUFFER_SIZE-1) downto 1);
+                    RX_buffer <= (uart_in_RRR xor (not(PHY_IDLE_STATE))) & RX_buffer((RX_BUFFER_SIZE-1) downto 1);
                   else
-                    RX_buffer <= RX_buffer((RX_BUFFER_SIZE-2) downto 0) & (UART_in_R_R_R xor (not(PHY_IDLE_STATE)));
+                    RX_buffer <= RX_buffer((RX_BUFFER_SIZE-2) downto 0) & (uart_in_RRR xor (not(PHY_IDLE_STATE)));
                   end if;
                   
                   sampling_done <= '0';
                 end if;
               else
                 -- Regular bit sampling
-                if (sample_count = "11") then
+                if (UNSIGNED(sample_count) = 3) then
                   -- 3 samples points were already taken.
                   -- Now, we don't sample, we move to the next bit.
                   RX_state      <= RX_BIT_SAMPLING;
                   sample_count  <= (others => '0');
                   sample_timer  <= SAMPLE_TIMER_THRESH;
-                  bit_index     <= bit_index + 1;
+                  bit_index     <= STD_LOGIC_VECTOR(UNSIGNED(bit_index) + 1);
                   RX_buffer     <= RX_buffer;
                   sampling_done <= '0';
                 else
                   RX_state      <= RX_BIT_SAMPLING;
-                  sample_count  <= sample_count + 1;
+                  sample_count  <= STD_LOGIC_VECTOR(UNSIGNED(sample_count) + 1);
                   sample_timer  <= SAMPLE_TIMER_THRESH;
                   
                   -- Sampling point was reached. Push the UART value in the stack
                   if (MSB_FIRST = '0') then
-                    RX_buffer <= (UART_in_R_R_R xor (not(PHY_IDLE_STATE))) & RX_buffer((RX_BUFFER_SIZE-1) downto 1);
+                    RX_buffer <= (uart_in_RRR xor (not(PHY_IDLE_STATE))) & RX_buffer((RX_BUFFER_SIZE-1) downto 1);
                   else
-                    RX_buffer <= RX_buffer((RX_BUFFER_SIZE-2) downto 0) & (UART_in_R_R_R xor (not(PHY_IDLE_STATE)));
+                    RX_buffer <= RX_buffer((RX_BUFFER_SIZE-2) downto 0) & (uart_in_RRR xor (not(PHY_IDLE_STATE)));
                   end if;
                   
                   sampling_done <= '0';
@@ -266,7 +266,7 @@ begin
               -- Keep increasing the counter until we reach the sampling point.
               RX_state      <= RX_BIT_SAMPLING;
               sample_count  <= sample_count;
-              sample_timer  <= sample_timer - 1;
+              sample_timer  <= STD_LOGIC_VECTOR(UNSIGNED(sample_timer) - 1);
               bit_index     <= bit_index;
               RX_buffer     <= RX_buffer;
               sampling_done <= '0';
@@ -274,7 +274,7 @@ begin
           -- ------------------------------------------------------------------
           when RX_SAMPLING_DONE =>
             RX_state      <= RX_INIT;
-            sample_count  <= "00";
+            sample_count  <= (others => '0');
             sample_timer  <= SAMPLE_TIMER_THRESH;
             bit_index     <= (others => '0');
             RX_buffer     <= RX_buffer;
@@ -282,7 +282,7 @@ begin
           -- ------------------------------------------------------------------
           when others =>
             RX_state      <= RX_INIT;
-            sample_count  <= "00";
+            sample_count  <= (others => '0');
             sample_timer  <= SAMPLE_TIMER_THRESH;
             bit_index     <= (others => '0');
             RX_buffer     <= (others => '0');
@@ -291,7 +291,9 @@ begin
         end case;
       end if;
 		end if;
-	end process UART_RX_FSM_proc;
+	end process p_uartRxFsm;
+
+
 
   RX_outputs_gen : for i in 0 to (N_BITS-1) generate
     -- Declare that there is no framing error when the 3 samples of each bit agree on the value.
@@ -300,7 +302,12 @@ begin
                               '1';
     RX_buffer_proc(i) <= RX_buffer((3*i)+1);  -- keep the middle sample
   end generate RX_outputs_gen;
+
+
   
+  -- --------------------------------------------------------------------------
+  -- Output data formatter
+  -- --------------------------------------------------------------------------
   RX_output_proc : process(clock, reset)
   procedure reset_proc is
   begin
@@ -334,18 +341,20 @@ begin
 		end if;
 	end process RX_output_proc;
   
-  -- ------------------------------
+
+
+  -- --------------------------------------------------------------------------
   -- UART transmitter state machine
-  -- ------------------------------
+  -- --------------------------------------------------------------------------
   UART_TX_FSM_proc : process(clock, reset)
   procedure reset_proc is
   begin
     TX_state        <= TX_INIT;
     TX_buffer       <= (others => '0');
     TX_ready        <= '0';
-    TX_bit_timer    <= (others => '0');
+    tx_bit_timer    <= (others => '0');
     TX_bit_count    <= (others => '0');
-    UART_out_buffer <= PHY_IDLE_STATE;
+    uart_out_buffer <= PHY_IDLE_STATE;
   end procedure;
   
 	begin
@@ -369,51 +378,51 @@ begin
               end if;
               
               TX_ready        <= '0';               -- Transmitter is not ready any more
-              TX_bit_timer    <= (others => '0');
+              tx_bit_timer    <= (others => '0');
               TX_bit_count    <= (others => '0');
-              UART_out_buffer <= not(PHY_IDLE_STATE);
+              uart_out_buffer <= not(PHY_IDLE_STATE);
             else
               TX_state        <= TX_INIT;
               TX_buffer       <= (others => '0');
               TX_ready        <= '1';
-              TX_bit_timer    <= (others => '0');
+              tx_bit_timer    <= (others => '0');
               TX_bit_count    <= (others => '0');
-              UART_out_buffer <= PHY_IDLE_STATE;
+              uart_out_buffer <= PHY_IDLE_STATE;
             end if;
           -- ------------------------------------------------------------------
           when TX_TRANSMIT =>
-            if (TX_bit_timer = TX_BIT_TIMER_THRESH) then
-              if (TX_bit_count = (N_BITS-1)) then 
+            if (tx_bit_timer = TX_BIT_TIMER_THRESH) then
+              if (UNSIGNED(TX_bit_count) = (N_BITS-1)) then 
                 TX_state        <= TX_INIT;
                 TX_buffer       <= (others => '0');
                 TX_ready        <= '1';             -- Transmission done, TX ready for a new data.
-                TX_bit_timer    <= (others => '0');
+                tx_bit_timer    <= (others => '0');
                 TX_bit_count    <= (others => '0');
-                UART_out_buffer <= PHY_IDLE_STATE;
+                uart_out_buffer <= PHY_IDLE_STATE;
               else
                 TX_state        <= TX_TRANSMIT;
                 TX_buffer       <= '0' & TX_buffer(TX_buffer'left downto 1);
                 TX_ready        <= '0';
-                TX_bit_timer    <= (others => '0');
-                TX_bit_count    <= TX_bit_count + 1;
+                tx_bit_timer    <= (others => '0');
+                TX_bit_count    <= STD_LOGIC_VECTOR(UNSIGNED(TX_bit_count) + 1);
                 
                 if (PHY_IDLE_STATE = '1') then
-                  UART_out_buffer <= TX_buffer(1);
+                  uart_out_buffer <= TX_buffer(1);
                 else
-                  UART_out_buffer <= not(TX_buffer(1));
+                  uart_out_buffer <= not(TX_buffer(1));
                 end if;
               end if;
             else
               TX_state        <= TX_TRANSMIT;
               TX_buffer       <= TX_buffer;
               TX_ready        <= '0';
-              TX_bit_timer    <= TX_bit_timer + 1;
+              tx_bit_timer    <= STD_LOGIC_VECTOR(UNSIGNED(tx_bit_timer) + 1);
               TX_bit_count    <= TX_bit_count;
               
               if (PHY_IDLE_STATE = '1') then
-                UART_out_buffer <= TX_buffer(0);
+                uart_out_buffer <= TX_buffer(0);
               else
-                UART_out_buffer <= not(TX_buffer(0));
+                uart_out_buffer <= not(TX_buffer(0));
               end if;
             end if;
           -- ------------------------------------------------------------------
@@ -421,9 +430,9 @@ begin
             TX_state        <= TX_INIT;
             TX_buffer       <= (others => '0');
             TX_ready        <= '1';
-            TX_bit_timer    <= (others => '0');
+            tx_bit_timer    <= (others => '0');
             TX_bit_count    <= (others => '0');
-            UART_out_buffer <= PHY_IDLE_STATE;
+            uart_out_buffer <= PHY_IDLE_STATE;
           -- ------------------------------------------------------------------
         end case;
       end if;
