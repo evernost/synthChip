@@ -16,8 +16,8 @@
 -- Simple debouncing module for push buttons, switches etc.
 -- The module includes the synchronizing input DFFs.
 --
--- It provides various types of output:
--- * state output : state of the push button 
+-- It provides various types of outputs:
+-- * state output : current state of the push button 
 -- * toggle output: state changes on every button press
 -- * irq output   : pulse every time an event is detected on the button.
 --
@@ -67,8 +67,10 @@ port
 );
 end debouncer;
 
+
+
 -- ============================================================================
--- Architecture
+-- ARCHITECTURE
 -- ============================================================================
 architecture arch_0 of debouncer is
 
@@ -78,7 +80,7 @@ signal glitchy_in_R    : STD_LOGIC;
 signal glitchy_in_RR   : STD_LOGIC;
 signal glitchy_in_sync : STD_LOGIC;
 
-constant TIMER_INIT_VAL : UNSIGNED(31 downto 0) := to_unsigned(INTEGER(CLOCK_FREQ_MHZ*1000.0*BLIND_TIME_MS)-1, 32);
+constant TIMER_INIT_VAL : UNSIGNED(31 downto 0) := TO_UNSIGNED(INTEGER(CLOCK_FREQ_MHZ*1000.0*BLIND_TIME_MS)-1, 32);
 signal timer            : STD_LOGIC_VECTOR(31 downto 0);
 
 signal fsm_state  : FSM_STATE_TYPE;
@@ -91,8 +93,8 @@ signal event_cycle_cnt  : STD_LOGIC_VECTOR(3 downto 0);
 begin
 
   -- --------------------------------------------------------------------------
-  -- Process name: Resynchronizer
-  -- Description: 
+  -- PROCESS NAME: resynchronizer
+  -- DESCRIPTION: 
   -- Bring back the asynchronous input to the synchronous domain.
   -- (3 stages resynchronizer, should be enough for most architectures)
   -- --------------------------------------------------------------------------
