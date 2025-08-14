@@ -26,18 +26,18 @@ set WCFG_FILE="tb_sim.wcfg"
 :: SYNTAX CHECK AND COMPILE
 :: ============================================================================
 echo [INFO] Syntax check...
-call %VIVADO_BIN%\xvhdl --work misc_lib ../../src/misc/blinky_pkg.vhd
-call %VIVADO_BIN%\xvhdl --work misc_lib ../../src/misc/blinky.vhd
-call %VIVADO_BIN%\xvhdl --work work tb_blinky.vhd
+call %VIVADO_BIN%\xvhdl --work misc_lib ../../src/misc/debouncer.vhd
+echo [DEBUG] 'xvhdl' command return code: %ERRORLEVEL%
 
+call %VIVADO_BIN%\xvhdl --work work tb_debouncer.vhd
+echo [DEBUG] 'xvhdl' command return code: %ERRORLEVEL%
 
 
 :: ============================================================================
 :: TESTBENCH ELABORATION
 :: ============================================================================
 echo [INFO] Elaborating...
-::call %VIVADO_BIN%\xelab tb_blinky -L misc_lib -s tb_sim -generic_top BLINK_FREQ_HZ=4.0
-call %VIVADO_BIN%\xelab tb_blinky -L misc_lib -s tb_sim -debug all
+call %VIVADO_BIN%\xelab tb_debouncer -L misc_lib -generic_top "IRQ_DURATION=3" -s tb_sim -debug all
 
 
 
@@ -53,7 +53,7 @@ if "%~1"=="nogui" (
   if exist "%WCFG_FILE%" (
     %VIVADO_BIN%\xsim tb_sim --gui -view "%WCFG_FILE%"
   ) else (
-    echo [WARNING] Wave file not found.
+    echo [WARNING] Wave file directive not found. Using defaults...
     %VIVADO_BIN%\xsim tb_sim --gui
   )
 )

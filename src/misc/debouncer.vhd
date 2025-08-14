@@ -49,8 +49,8 @@ generic
   RESET_SYNC      : BOOLEAN;                    -- Use synchronous reset?
   CLOCK_FREQ_MHZ  : REAL;                       -- Clock frequency in MHz
   BLIND_TIME_MS   : REAL := 1.0;                -- Time period (in ms) during which the state of the input is ignored
-  IRQ_DURATION    : INTEGER range 1 to 15 := 1; -- Input event notification time (in clock cycles)
-  IRQ_TRIG_POL    : INTEGER range 0 to 2 := 1   -- Trigger event on falling edge (0), rising edge (1) or both (2)
+  IRQ_TRIG_POL    : INTEGER range 0 to 2 := 1;  -- IRQ trigger event: rising edge (0), falling edge (1) or both (2)
+  IRQ_DURATION    : INTEGER range 1 to 15 := 1  -- IRQ notification time (in clock cycles)
 );
 port
 ( 
@@ -72,24 +72,25 @@ end debouncer;
 -- ============================================================================
 -- ARCHITECTURE
 -- ============================================================================
-architecture arch_0 of debouncer is
+architecture archDefault of debouncer is
 
-type FSM_STATE_TYPE is (FREEZE, IDLE);
+  type FSM_STATE_TYPE is (FREEZE, WAIT_EVENT);
 
-signal glitchy_in_R    : STD_LOGIC;
-signal glitchy_in_RR   : STD_LOGIC;
-signal glitchy_in_sync : STD_LOGIC;
+  signal button_R    : STD_LOGIC;
+  signal button_RR   : STD_LOGIC;
+  signal button_sync : STD_LOGIC;
 
-constant TIMER_INIT_VAL : UNSIGNED(31 downto 0) := TO_UNSIGNED(INTEGER(CLOCK_FREQ_MHZ*1000.0*BLIND_TIME_MS)-1, 32);
-signal timer            : STD_LOGIC_VECTOR(31 downto 0);
+  constant TIMER_INIT_VAL : UNSIGNED(31 downto 0) := TO_UNSIGNED(INTEGER(CLOCK_FREQ_MHZ*1000.0*BLIND_TIME_MS)-1, 32);
+  signal timer            : STD_LOGIC_VECTOR(31 downto 0);
 
-signal fsm_state  : FSM_STATE_TYPE;
-signal out_tmp    : STD_LOGIC;
+  signal fsm_state  : FSM_STATE_TYPE;
+  signal out_tmp    : STD_LOGIC;
 
-signal event_trig       : STD_LOGIC;
-signal event_en         : STD_LOGIC;
-signal event_cycle_cnt  : STD_LOGIC_VECTOR(3 downto 0);
-
+  signal event            : STD_LOGIC;
+  signal event_trig       : STD_LOGIC;
+  signal event_en         : STD_LOGIC;
+  signal event_cycle_cnt  : STD_LOGIC_VECTOR(3 downto 0);
+  
 begin
 
   -- --------------------------------------------------------------------------
@@ -101,9 +102,9 @@ begin
   p_sync : process(clock, reset)
   procedure reset_procedure is 
   begin
-    glitchy_in_R    <= '0';
-    glitchy_in_RR   <= '0';
-    glitchy_in_sync <= '0';
+    button_R    <= '0';
+    button_RR   <= '0';
+    button_sync <= '0';
   end reset_procedure;
   begin
     if (reset = RESET_POL) and (RESET_SYNC = false) then
@@ -112,12 +113,14 @@ begin
       if (reset = RESET_POL) and (RESET_SYNC = true) then
         reset_procedure;
       else
-        glitchy_in_R <= glitchy_in;
-        glitchy_in_RR <= glitchy_in_R;
-        glitchy_in_sync <= glitchy_in_RR;
+        button_R    <= button_in;
+        button_RR   <= button_R;
+        button_sync <= button_RR;
       end if;
     end if;
   end process p_sync;
+
+
 
   -- --------------------------------------------------------------------------
   -- Debouncing process
@@ -125,11 +128,12 @@ begin
   p_debounce : process(clock, reset)
   procedure reset_procedure is 
   begin
-    fsm_state   <= IDLE;
+    fsm_state   <= WAIT_EVENT;
     timer       <= (others => '0');
     event_trig  <= '0';
     out_tmp     <= '0';
-    debounced_out <= '0';
+    state       <= '0';
+    state_n     <= '0';
   end reset_procedure;
   begin
     if (reset = RESET_POL) and (RESET_SYNC = false) then
@@ -141,21 +145,21 @@ begin
         case fsm_state is 
           
           -- ------------------------------------------------------------------
-          -- IDLE State
+          -- WAIT_EVENT State
           -- ------------------------------------------------------------------
-          when IDLE => 
-            if (glitchy_in_sync /= out_tmp) then
+          when WAIT_EVENT => 
+            if (button_sync /= out_tmp) then
               fsm_state <= FREEZE;
               timer <= STD_LOGIC_VECTOR(TIMER_INIT_VAL);
               
-              if (EVENT_TRIG_POL = 0) then
-                if (out_tmp = '1') and (glitchy_in_sync = '0') then
+              if (IRQ_TRIG_POL = 1) then
+                if (out_tmp = '1') and (button_sync = '0') then
                   event_trig <= '1';
                 else 
                   event_trig <= '0';
                 end if;
-              elsif (EVENT_TRIG_POL = 1) then
-                if (out_tmp = '0') and (glitchy_in_sync = '1') then
+              elsif (IRQ_TRIG_POL = 0) then
+                if (out_tmp = '0') and (button_sync = '1') then
                   event_trig <= '1';
                 else 
                   event_trig <= '0';
@@ -170,9 +174,9 @@ begin
           -- ------------------------------------------------------------------
           when FREEZE => 
             if (timer = STD_LOGIC_VECTOR(to_unsigned(0, timer'length))) then
-              fsm_state <= IDLE;
+              fsm_state <= WAIT_EVENT;
               timer <= (others => '0');
-              out_tmp <= glitchy_in_sync;
+              out_tmp <= button_sync;
               event_trig <= '0';
             else
               timer <= STD_LOGIC_VECTOR(UNSIGNED(timer) - 1);
@@ -183,22 +187,20 @@ begin
           -- Exceptions
           -- ------------------------------------------------------------------
           when others =>
-            fsm_state   <= IDLE;
+            fsm_state   <= WAIT_EVENT;
             timer       <= (others => '0');
             event_trig  <= '0';
             out_tmp     <= '0';
 
         end case;
 
-        if (REVERT_POL) then
-          debounced_out <= not(out_tmp);
-        else
-          debounced_out <= out_tmp;
-        end if;
-
+        -- Assign outputs
+        state_n <= not(out_tmp);
+        state   <= out_tmp;
       end if;
     end if;
   end process p_debounce;
+
 
 
   -- --------------------------------------------------------------------------
@@ -209,8 +211,8 @@ begin
   p_event : process(clock, reset)
   procedure reset_procedure is 
   begin
-    event <= '0';
-    event_en <= '0';
+    event           <= '0';
+    event_en        <= '0';
     event_cycle_cnt <= (others => '0');
   end reset_procedure;
   begin
@@ -239,4 +241,4 @@ begin
     end if;
   end process p_event;
 
-end arch_0;
+end archDefault;
