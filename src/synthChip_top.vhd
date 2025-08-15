@@ -31,15 +31,22 @@ library misc_lib;
 entity synthChip_top is
 generic
 (
-  RESET_POL   : STD_LOGIC := '0';
-  RESET_SYNC  : BOOLEAN := TRUE
+  RESET_POL       : STD_LOGIC := '0';
+  RESET_SYNC      : BOOLEAN := TRUE;
+  CLOCK_FREQ_MHZ  : REAL
 );
 port
 ( 
-  clock       : in STD_LOGIC;
-  reset       : in STD_LOGIC;
+  clock         : in STD_LOGIC;
+  reset         : in STD_LOGIC;
 
-  user_leds   : out STD_LOGIC_VECTOR(7 downto 0);
+  -- User
+  leds          : out STD_LOGIC_VECTOR(7 downto 0);
+  push_button_C : in STD_LOGIC;
+  push_button_L : in STD_LOGIC;
+  push_button_R : in STD_LOGIC;
+  push_button_U : in STD_LOGIC;
+  push_button_D : in STD_LOGIC;
 
   -- UART link
   uart_rxd : in STD_LOGIC;
@@ -54,12 +61,13 @@ end synthChip_top;
 -- ============================================================================
 architecture archDefault of synthChip_top is
 
-  signal heartbeat  : STD_LOGIC;
+  signal heartbeat      : STD_LOGIC;
+  signal isResetActive  : STD_LOGIC;
   
 begin
 
-  user_leds(0)  <= heartbeat;                       -- FPGA is active
-  user_leds(1)  <= '0';                             -- No function yet
+  user_leds(0)  <= isResetActive;                   -- Indicates if the module is under reset
+  user_leds(1)  <= heartbeat;                       -- FPGA is active (clock OK, reset OK)
   user_leds(2)  <= '0';                             -- No function yet
   user_leds(3)  <= '0';                             -- No function yet
   user_leds(4)  <= '0';                             -- No function yet
@@ -77,7 +85,7 @@ begin
   (
     RESET_POL       => RESET_POL,
     RESET_SYNC      => RESET_SYNC,
-    CLOCK_FREQ_MHZ  => 100.0,
+    CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
     BLINK_FREQ_HZ   => 2.0
   )
   port map
@@ -90,7 +98,37 @@ begin
 
 
 
-  
+  -- --------------------------------------------------------------------------
+  -- Debouncer
+  -- --------------------------------------------------------------------------
+  debouncer_0 : entity misc_lib.debouncer(archDefault)
+  generic map
+  (
+    RESET_POL       => RESET_POL,
+    RESET_SYNC      => RESET_SYNC,
+    CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
+    BLIND_TIME_MS   => 25.0,
+    IRQ_TRIG_POL    => 1,
+    IRQ_DURATION    => 1
+  )
+  port map
+  ( 
+    clock     => clock,
+    reset     => reset,
+    
+    button_in => push_button_C,
+    
+    state     => 
+    state_n   => open,
+    toggle    => open,
+
+    irq       => open
+  );
+
+
+
+  isResetActive <= '1' when (reset = RESET_POL) else
+                   '0';
 
 
   

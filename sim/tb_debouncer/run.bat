@@ -17,7 +17,7 @@ setlocal
 :: ============================================================================
 :: SETTINGS
 :: ============================================================================
-set VIVADO_BIN="C:\Xilinx\Vivado\2024.1\bin"
+set VIVADO_BIN="D:\Xilinx\Vivado\2024.1\bin"
 set WCFG_FILE="tb_sim.wcfg"
 
 
