@@ -19,9 +19,9 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
 
 -- Project libraries
-library uart_lib; use uart_lib.uart_pkg.all;
 library debouncer_lib; use debouncer_lib.debouncer_pkg.all;
 library blinky_lib; use blinky_lib.blinky_pkg.all;
+--library uart_lib; use uart_lib.uart_pkg.all;
 --library work; use work.synthChip_pkg.all;
 
 
@@ -33,8 +33,7 @@ entity synthChip_top is
 generic
 (
   RESET_POL       : STD_LOGIC := '0';
-  RESET_SYNC      : BOOLEAN := TRUE;
-  CLOCK_FREQ_MHZ  : REAL
+  RESET_SYNC      : BOOLEAN := TRUE
 );
 port
 ( 
@@ -43,15 +42,15 @@ port
 
   -- User
   leds          : out STD_LOGIC_VECTOR(7 downto 0);
-  push_button_C : in STD_LOGIC;
   push_button_L : in STD_LOGIC;
   push_button_R : in STD_LOGIC;
   push_button_U : in STD_LOGIC;
   push_button_D : in STD_LOGIC;
+  push_button_C : in STD_LOGIC
 
   -- UART link
-  uart_rxd : in STD_LOGIC;
-  uart_txd : out STD_LOGIC
+  --uart_rxd : in STD_LOGIC;
+  --uart_txd : out STD_LOGIC
 );
 end synthChip_top;
 
@@ -62,26 +61,34 @@ end synthChip_top;
 -- ============================================================================
 architecture archDefault of synthChip_top is
 
+  constant   CLOCK_FREQ_MHZ  : REAL := 100.0;
+
   signal heartbeat      : STD_LOGIC;
   signal isResetActive  : STD_LOGIC;
   
+  signal pb_L : STD_LOGIC;
+  signal pb_R : STD_LOGIC;
+  signal pb_U : STD_LOGIC;
+  signal pb_D : STD_LOGIC;
+  signal pb_C : STD_LOGIC;
+
 begin
 
-  user_leds(0)  <= isResetActive;                   -- Indicates if the module is under reset
-  user_leds(1)  <= heartbeat;                       -- Indicates if the FPGA is active (clock OK, reset OK)
-  user_leds(2)  <= '0';                             -- No function yet
-  user_leds(3)  <= '0';                             -- No function yet
-  user_leds(4)  <= '0';                             -- No function yet
-  user_leds(5)  <= '0';                             -- No function yet
-  user_leds(6)  <= '0';                             -- No function yet
-  user_leds(7)  <= '0';                             -- No function yet
+  leds(0) <= isResetActive;     -- Indicates if the module is under reset
+  leds(1) <= heartbeat;         -- Indicates if the FPGA is active (clock OK, reset OK)
+  leds(2) <= pb_L;              -- For test purposes
+  leds(3) <= pb_R;              -- DEBUG
+  leds(4) <= pb_U;              -- DEBUG
+  leds(5) <= pb_D;              -- DEBUG
+  leds(6) <= pb_C;              -- DEBUG
+  leds(7) <= '0';               -- No function yet
 
 
 
   -- --------------------------------------------------------------------------
   -- Blinky (heartbeat)
   -- --------------------------------------------------------------------------
-  blinky_0 : entity misc_lib.blinky(archDefault)
+  blinky_0 : entity blinky_lib.blinky(archDefault)
   generic map
   (
     RESET_POL       => RESET_POL,
@@ -102,7 +109,110 @@ begin
   -- --------------------------------------------------------------------------
   -- Debouncer
   -- --------------------------------------------------------------------------
-  debouncer_0 : entity misc_lib.debouncer(archDefault)
+  debouncer_0 : entity debouncer_lib.debouncer(archDefault)
+  generic map
+  (
+    RESET_POL       => RESET_POL,
+    RESET_SYNC      => RESET_SYNC,
+    CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
+    BLIND_TIME_MS   => 25.0,
+    IRQ_TRIG_POL    => IRQ_TRIGGER_POL_RISING,
+    IRQ_DURATION    => 1
+  )
+  port map
+  ( 
+    clock     => clock,
+    reset     => reset,
+    
+    button_in => push_button_L,
+    
+    state     => pb_L,
+    state_n   => open,
+    toggle    => open,
+
+    irq       => open
+  );
+
+
+  debouncer_1 : entity debouncer_lib.debouncer(archDefault)
+  generic map
+  (
+    RESET_POL       => RESET_POL,
+    RESET_SYNC      => RESET_SYNC,
+    CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
+    BLIND_TIME_MS   => 25.0,
+    IRQ_TRIG_POL    => IRQ_TRIGGER_POL_RISING,
+    IRQ_DURATION    => 1
+  )
+  port map
+  ( 
+    clock     => clock,
+    reset     => reset,
+    
+    button_in => push_button_R,
+    
+    state     => pb_R,
+    state_n   => open,
+    toggle    => open,
+
+    irq       => open
+  );
+
+
+
+  debouncer_2 : entity debouncer_lib.debouncer(archDefault)
+  generic map
+  (
+    RESET_POL       => RESET_POL,
+    RESET_SYNC      => RESET_SYNC,
+    CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
+    BLIND_TIME_MS   => 25.0,
+    IRQ_TRIG_POL    => IRQ_TRIGGER_POL_RISING,
+    IRQ_DURATION    => 1
+  )
+  port map
+  ( 
+    clock     => clock,
+    reset     => reset,
+    
+    button_in => push_button_U,
+    
+    state     => pb_U,
+    state_n   => open,
+    toggle    => open,
+
+    irq       => open
+  );
+
+
+
+  debouncer_3 : entity debouncer_lib.debouncer(archDefault)
+  generic map
+  (
+    RESET_POL       => RESET_POL,
+    RESET_SYNC      => RESET_SYNC,
+    CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
+    BLIND_TIME_MS   => 25.0,
+    IRQ_TRIG_POL    => IRQ_TRIGGER_POL_RISING,
+    IRQ_DURATION    => 1
+  )
+  port map
+  ( 
+    clock     => clock,
+    reset     => reset,
+    
+    button_in => push_button_D,
+    
+    state     => pb_D,
+    state_n   => open,
+    toggle    => open,
+
+    irq       => open
+  );
+
+
+
+  debouncer_4 : entity debouncer_lib.debouncer(archDefault)
   generic map
   (
     RESET_POL       => RESET_POL,
@@ -119,13 +229,12 @@ begin
     
     button_in => push_button_C,
     
-    state     => 
+    state     => pb_C,
     state_n   => open,
     toggle    => open,
 
     irq       => open
   );
-
 
 
   isResetActive <= '1' when (reset = RESET_POL) else
