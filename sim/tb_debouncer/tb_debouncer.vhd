@@ -19,7 +19,7 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
 
 -- Project libraries
-library misc_lib;
+library debouncer_lib; use debouncer_lib.debouncer_pkg.all;
 
 
 
@@ -34,7 +34,7 @@ generic
   CLOCK_FREQ_MHZ  : REAL := 100.0;
   BLIND_TIME_MS   : REAL := 20.0;
   IRQ_DURATION    : INTEGER range 1 to 15 := 1;
-  IRQ_TRIG_POL    : INTEGER range 0 to 2 := 0
+  IRQ_TRIG_POL    : INTEGER range 0 to 2 := IRQ_TRIGGER_POL_RISING
 );
 end tb_debouncer;
 
@@ -61,7 +61,7 @@ begin
   -- --------------------------------------------------------------------------
   -- DUT (debouncer)
   -- --------------------------------------------------------------------------
-  dut_debouncer_0 : entity misc_lib.debouncer(archDefault)
+  dut_debouncer_0 : entity debouncer_lib.debouncer(archDefault)
   generic map
   (
     RESET_POL       => RESET_POL,

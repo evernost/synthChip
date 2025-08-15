@@ -35,7 +35,7 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
 
 -- Project libraries
--- None.
+library work; use work.debouncer_pkg.all;
 
 
 

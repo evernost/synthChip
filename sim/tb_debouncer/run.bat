@@ -26,7 +26,8 @@ set WCFG_FILE="tb_sim.wcfg"
 :: SYNTAX CHECK AND COMPILE
 :: ============================================================================
 echo [INFO] Syntax check...
-call %VIVADO_BIN%\xvhdl --work misc_lib ../../src/misc/debouncer.vhd
+call %VIVADO_BIN%\xvhdl --work debouncer_lib ../../src/debouncer/debouncer_pkg.vhd
+call %VIVADO_BIN%\xvhdl --work debouncer_lib ../../src/debouncer/debouncer.vhd
 echo [DEBUG] 'xvhdl' command return code: %ERRORLEVEL%
 
 call %VIVADO_BIN%\xvhdl --work work tb_debouncer.vhd
@@ -37,7 +38,7 @@ echo [DEBUG] 'xvhdl' command return code: %ERRORLEVEL%
 :: TESTBENCH ELABORATION
 :: ============================================================================
 echo [INFO] Elaborating...
-call %VIVADO_BIN%\xelab tb_debouncer -L misc_lib -generic_top "IRQ_DURATION=3" -s tb_sim -debug all
+call %VIVADO_BIN%\xelab tb_debouncer -L debouncer_lib -generic_top "IRQ_DURATION=3" -s tb_sim -debug all
 
 
 

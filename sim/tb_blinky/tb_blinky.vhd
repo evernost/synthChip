@@ -19,7 +19,7 @@ use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
 
 -- Project libraries
-library misc_lib;
+library blinky_lib;
 
 
 
@@ -55,7 +55,7 @@ begin
   -- --------------------------------------------------------------------------
   -- DUT (blinky)
   -- --------------------------------------------------------------------------
-  dut_blinky_0 : entity misc_lib.blinky(archDefault)
+  dut_blinky_0 : entity blinky_lib.blinky(archDefault)
   generic map
   (
     RESET_POL       => RESET_POL,

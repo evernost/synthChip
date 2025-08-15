@@ -11,9 +11,19 @@
 :: ============================================================================
 
 @echo off
-echo Generating the synthChip FPGA...
+echo [INFO] Generating the 'synthChip' FPGA...
 
-set VIVADO_PATH="D:\Xilinx\Vivado\2019.2\bin\vivado.bat"
+::set VIVADO_PATH="D:\Xilinx\Vivado\2019.2\bin\vivado.bat"
+
+:: === Read vivado_path.ini ===
+for /f "usebackq tokens=1,2 delims==" %%A in ("..\vivado_path.ini") do (
+  set %%A=%%B
+)
+
+echo [INFO] Vivado bin path set to: '%VIVADO_PATH%'
+
+
+
 set TARGET_DIR=".\vivado\fpga_synthChip"
 set TCL_SCRIPT=".\tcl\makeFpga.tcl"
 
@@ -22,7 +32,7 @@ if exist "%TARGET_DIR%" (
   rmdir /s /q "%TARGET_DIR%"
 )
 
-%VIVADO_PATH% -mode batch -source %TCL_SCRIPT% -notrace -log makeFpga.log -journal makeFpga.jou
+%VIVADO_PATH%\vivado.bat -mode batch -source %TCL_SCRIPT% -notrace -log makeFpga.log -journal makeFpga.jou
 
 echo Batch execution finished.
 pause

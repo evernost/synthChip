@@ -20,7 +20,8 @@ use IEEE.NUMERIC_STD.all;
 
 -- Project libraries
 library uart_lib; use uart_lib.uart_pkg.all;
-library misc_lib;
+library debouncer_lib; use debouncer_lib.debouncer_pkg.all;
+library blinky_lib; use blinky_lib.blinky_pkg.all;
 --library work; use work.synthChip_pkg.all;
 
 
@@ -67,7 +68,7 @@ architecture archDefault of synthChip_top is
 begin
 
   user_leds(0)  <= isResetActive;                   -- Indicates if the module is under reset
-  user_leds(1)  <= heartbeat;                       -- FPGA is active (clock OK, reset OK)
+  user_leds(1)  <= heartbeat;                       -- Indicates if the FPGA is active (clock OK, reset OK)
   user_leds(2)  <= '0';                             -- No function yet
   user_leds(3)  <= '0';                             -- No function yet
   user_leds(4)  <= '0';                             -- No function yet
@@ -86,7 +87,7 @@ begin
     RESET_POL       => RESET_POL,
     RESET_SYNC      => RESET_SYNC,
     CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
-    BLINK_FREQ_HZ   => 2.0
+    BLINK_FREQ_HZ   => 1.0
   )
   port map
   ( 
@@ -108,7 +109,7 @@ begin
     RESET_SYNC      => RESET_SYNC,
     CLOCK_FREQ_MHZ  => CLOCK_FREQ_MHZ,
     BLIND_TIME_MS   => 25.0,
-    IRQ_TRIG_POL    => 1,
+    IRQ_TRIG_POL    => IRQ_TRIGGER_POL_RISING,
     IRQ_DURATION    => 1
   )
   port map

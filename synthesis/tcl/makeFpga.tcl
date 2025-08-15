@@ -2,13 +2,25 @@
 # Project       : synthChip
 # Module name   : makeFpga
 # File name     : makeFpga.tcl
-# File type     : TCL script (Vivado 2019.2)
+# File type     : TCL script (Vivado 2024.1)
 # Purpose       : full Vivado project generation script
 # Author        : QuBi (nitrogenium@outlook.fr)
 # Creation date : August 11th, 2025
 # -----------------------------------------------------------------------------
 # Best viewed with space indentation (2 spaces)
 # =============================================================================
+
+# =============================================================================
+# NOTES
+# =============================================================================
+# The "zedboard" might require an update of the board repository to be 
+# available in Vivado:
+# xhub::refresh_catalog [xhub::get_xstores xilinx_board_store]
+# xhub::uninstall [xhub::get_xitems avnet.com:xilinx_board_store:zedboard:1.4]
+# xhub::install [xhub::get_xitems avnet.com:xilinx_board_store:zedboard:1.4]
+# xhub::update [xhub::get_xitems avnet.com:xilinx_board_store:zedboard:1.4]
+
+
 
 # =============================================================================
 # FUNCTIONS
@@ -34,7 +46,8 @@ set blockDesignName "${topName}"
 # FPGA settings
 set targetFpga "7z020"
 set targetPart "xc7z020clg484-1"
-set targetBoard "em.avnet.com:zed:part0:1.4"
+set targetBoard "avnet.com:zedboard:part0:1.4"
+#set targetBoard "em.avnet.com:zed:part0:1.4"
 
 # Directories
 set projectDir "./vivado"
@@ -57,7 +70,12 @@ log "Cleaning output products"
 
 
 
+
 log "Creating project"
+# NOTE: workaround in 2024.1 to force Vivado detect the installed boards
+# See 'https://adaptivesupport.amd.com/s/question/0D52E00006hpfIzSAI/set-board-repo-path?language=en_US'
+set_param board.repoPaths [file join $::env(APPDATA) Xilinx Vivado 2024.1 xhub board_store xilinx_board_store]
+
 create_project ${projectName} "${projectDir}/${projectName}" -part ${targetPart}
 set_property board_part ${targetBoard} [current_project]
 set_property target_language VHDL [current_project]
@@ -77,8 +95,15 @@ save_bd_design
 
 
 log "Adding VHDL files"
+addFileToLib "${sourceDir}/blinky/blinky_pkg.vhd" "blinky_lib"
+addFileToLib "${sourceDir}/blinky/blinky.vhd"     "blinky_lib"
+
+addFileToLib "${sourceDir}/debouncer/debouncer_pkg.vhd" "debouncer_lib"
+addFileToLib "${sourceDir}/debouncer/debouncer.vhd"     "debouncer_lib"
+
 addFileToLib "${sourceDir}/uart/uart.vhd" "uart_lib"
 
+addFileToLib "${sourceDir}/synthChip_top.vhd" "work"
 
 
 log "Adding IPs"
@@ -97,6 +122,11 @@ apply_bd_automation \
 
 set_property -dict [list CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ {75.0}]  [get_bd_cells processing_system7_0]
 set_property -dict [list CONFIG.PCW_USE_S_AXI_HP0 {1}]                [get_bd_cells processing_system7_0]
+
+# -----------------------
+# Push buttons debouncers
+# -----------------------
+# create_bd_cell -type module -reference uart uart_0
 
 # ---------------
 # I2S transmitter
